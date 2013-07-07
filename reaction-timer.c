@@ -1,6 +1,6 @@
 /*
  * Reaction Timer
- *  1. Waits for the user to press the button.
+ * 	1. Waits for the user to press the button.
  * 	2. (optional) Wait a short "random" amount of time.
  * 	3. Flash the green light 2 times and then the red light once.
  * 	4. As soon as the user sees the red light go off, s/he should press the button again.
