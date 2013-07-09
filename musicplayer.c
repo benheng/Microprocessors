@@ -1,6 +1,7 @@
 /* INCOMPLETE, TODO: change it's operation so the cpu isn't on doing nothing (i.e. make it sleep)
+**
 ** Music Player
-**   This program uses Timer_A (TACTL) and two of its comparators, TACCTL0 and TACCTL1. There are
+** 	This program uses Timer_A (TACTL) and two of its comparators, TACCTL0 and TACCTL1. There are
 ** 	two interrupt handlers, one for each comparator. TACCTL0 toggles the output P1.1 and drives
 ** 	a speaker while TACCTL1 times the duration in order to space out the notes to play
 ** 	programmable songs.
@@ -89,10 +90,8 @@
 #define BUTTON 0x08		// 0000 1000
 
 // GLOBAL VARIABLES
-volatile unsigned int play = 0;
 volatile unsigned int sound_enabled = 0;
 volatile unsigned int current_note = C6;
-volatile unsigned int ms_duration = 0;
 volatile unsigned int ms_elapsed = 0;
 volatile unsigned int ms_per_tick = 60000 / (4 * 160);
 // to calculate ms_per_tick: 60000ms / (ticks_per_beat * beats_per_minute)
@@ -115,18 +114,15 @@ void main(void)
 	TACTL 	 = (TASSEL_2 + 		// clock source: SMCLK
 				    ID_0 + 		// input divider: 1
 				    MC_2);		// continuous mode (interrupt disabled)
-	TACCTL0  = CCIE;			// TACCTL0 generates notes, interrupt enabled
-	TACCR0	 = current_note;	// initial note
-	TACCTL1  = CCIE;			// TACCTL1 times durations, interrupt enabled
+	TACCTL0 = CCIE;				// TACCTL0 generates notes, interrupt enabled
+	TACCR0	= current_note;		// initial note
+	TACCTL1 = CCIE;				// TACCTL1 times durations, interrupt enabled
 	P1SEL	|= TA0_BIT;			// connect timer to P1.1
 	P1DIR	|= TA0_BIT;			// set P1.1 to output
 
 	// button initializers
-	P1OUT 	|= BUTTON;			// set P1.3 as an output
-	P1REN 	|= BUTTON;			// enable PULLUP resistor
-	P1IES	|= BUTTON;			// set falling edge
-	P1IFG	&= ~BUTTON;			// clear interrupt flag
-	P1IE	|= BUTTON;			// enable interrupt
+	P1OUT |= BUTTON;		 	// set P1.3 as an output
+	P1REN |= BUTTON; 			// enable PULLUP resistor
 
 	// enable interrupts
 	_bis_SR_register(GIE);
@@ -137,6 +133,7 @@ void main(void)
 		play_song();
 	}
 }
+
 
 // HELPER FUNTIONS
 void measure_1() {
@@ -372,23 +369,24 @@ void play_song()
 void play(unsigned int note, unsigned int duration_ticks)
 {
 	// plays a note for a set duration
-	ms_duration = duration_ticks * ms_per_tick;		// compute duration
+	unsigned int duration_ms = 0;
+	duration_ms = duration_ticks * ms_per_tick;		// compute duration
 	current_note = note;							// set current note
 	sound_enabled = OUTMOD_4;						// play note
 	ms_elapsed = 0;									// reset counter
-	while (ms_elapsed < ms_duration - SILENCE_MS);	// play until SILENCE
+	while (ms_elapsed < duration_ms - SILENCE_MS);	// play until SILENCE
 	sound_enabled = 0;								// stop note
-	while (ms_elapsed < ms_duration);				// pause until duration
+	while (ms_elapsed < duration_ms);				// pause until duration
 }
 
 void rest(unsigned int duration_ticks)
 {
 	// pauses in silence for a set duration
-	unsigned int ms_duration = 0;
-	ms_duration = duration_ticks * ms_per_tick;		// compute duration
+	unsigned int duration_ms = 0;
+	duration_ms = duration_ticks * ms_per_tick;		// compute duration
 	sound_enabled = 0;								// stop note
 	ms_elapsed = 0;									// reset counter
-	while(ms_elapsed < ms_duration);				// pause
+	while(ms_elapsed < duration_ms);				// pause
 }
 
 // INTERRUPT HANDLERS
@@ -411,12 +409,3 @@ void interrupt note_handler()
 	TACCTL0 = CCIE + sound_enabled;	// sets the speakers on or off
 }
 ISR_VECTOR(note_handler, ".int09")
-
-void interrupt button_handler()
-{
-	if (P1IFG & BUTTON) {
-		P1IFG &= ~BUTTON;	// reset the interrupt flag
-		play ^= 1;
-	}
-}
-ISR_VECTOR(button_handler, ".int02")
